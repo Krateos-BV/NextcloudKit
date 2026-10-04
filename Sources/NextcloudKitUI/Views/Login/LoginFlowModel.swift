@@ -21,9 +21,12 @@ final class LoginFlowModel: QRCodeParsing, URLSanitizing {
     private let userAgent: String?
     private let addAccount: AddAccountHandler
 
-    init(userAgent: String?, addAccount: @escaping AddAccountHandler) {
+    init(userAgent: String?, defaultServerAddress: String? = nil, addAccount: @escaping AddAccountHandler) {
         self.userAgent = userAgent
         self.addAccount = addAccount
+        if let defaultServerAddress {
+            self.enteredServerAddress = defaultServerAddress
+        }
     }
 
     // MARK: - State observed by the view
