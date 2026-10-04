@@ -28,14 +28,15 @@ public struct ServerAddressView: View {
     ///     - brandImage: The image to display on top of the server address view. Falls back to an SF Symbol placeholder in case of `nil`.
     ///     - sharedAccounts: Any shared accounts from the app group being available for selection and faster login.
     ///     - userAgent: An optional user agent string to override the one used by ``WKWebView``.
+    ///     - defaultServerAddress: An optional address to pre-fill the server address field with, for branded apps that lock their users to a single server. Left empty (`nil`) by default, matching prior behavior.
     ///     - addAccount: see ``AddAccountHandler``.
     ///
-    public init(backgroundColor: Binding<Color>, brandImage: Image, sharedAccounts: [SharedAccount], userAgent: String? = nil, addAccount: @escaping AddAccountHandler) {
+    public init(backgroundColor: Binding<Color>, brandImage: Image, sharedAccounts: [SharedAccount], userAgent: String? = nil, defaultServerAddress: String? = nil, addAccount: @escaping AddAccountHandler) {
         self._backgroundColor = backgroundColor
         self.brandImage = brandImage
         self.sharedAccounts = sharedAccounts
         self.userAgent = userAgent
-        self._model = State(initialValue: LoginFlowModel(userAgent: userAgent, addAccount: addAccount))
+        self._model = State(initialValue: LoginFlowModel(userAgent: userAgent, defaultServerAddress: defaultServerAddress, addAccount: addAccount))
     }
 
     // MARK: - Environment
