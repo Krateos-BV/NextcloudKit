@@ -19,6 +19,7 @@ public struct ServerAddressView: View {
     let brandImage: Image
     var sharedAccounts: [SharedAccount]
     let userAgent: String?
+    let lockServerAddress: Bool
 
     ///
     /// Create a new server address view.
@@ -29,13 +30,15 @@ public struct ServerAddressView: View {
     ///     - sharedAccounts: Any shared accounts from the app group being available for selection and faster login.
     ///     - userAgent: An optional user agent string to override the one used by ``WKWebView``.
     ///     - defaultServerAddress: An optional address to pre-fill the server address field with, for branded apps that lock their users to a single server. Left empty (`nil`) by default, matching prior behavior.
+    ///     - lockServerAddress: When `true`, the server address field is pre-filled and non-editable — only meaningful together with `defaultServerAddress`. The submit button, QR code scan and shared-account selection remain available. Defaults to `false`, matching prior behavior.
     ///     - addAccount: see ``AddAccountHandler``.
     ///
-    public init(backgroundColor: Binding<Color>, brandImage: Image, sharedAccounts: [SharedAccount], userAgent: String? = nil, defaultServerAddress: String? = nil, addAccount: @escaping AddAccountHandler) {
+    public init(backgroundColor: Binding<Color>, brandImage: Image, sharedAccounts: [SharedAccount], userAgent: String? = nil, defaultServerAddress: String? = nil, lockServerAddress: Bool = false, addAccount: @escaping AddAccountHandler) {
         self._backgroundColor = backgroundColor
         self.brandImage = brandImage
         self.sharedAccounts = sharedAccounts
         self.userAgent = userAgent
+        self.lockServerAddress = lockServerAddress
         self._model = State(initialValue: LoginFlowModel(userAgent: userAgent, defaultServerAddress: defaultServerAddress, addAccount: addAccount))
     }
 
@@ -105,6 +108,7 @@ public struct ServerAddressView: View {
                         .onSubmit {
                             model.logIn()
                         }
+                        .disabled(lockServerAddress)
 
                         if model.isActive {
                             ProgressView()
