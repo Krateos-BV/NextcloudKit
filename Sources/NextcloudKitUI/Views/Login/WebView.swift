@@ -15,6 +15,8 @@ import WebKit
 ///
 /// All of the web view session data is not persistent.
 ///
+/// An optional ``WebNavigationPolicy`` restricts which pages can be reached from the initial URL.
+///
 public struct WebView: ViewRepresentable {
     ///
     /// This must be a binding to support presentation inside sheets.
@@ -25,12 +27,19 @@ public struct WebView: ViewRepresentable {
 
     let userAgent: String?
 
-    public init(initialURL: Binding<URL?>, userAgent: String? = nil) {
+    let navigationPolicy: WebNavigationPolicy
+
+    public init(initialURL: Binding<URL?>, userAgent: String? = nil, navigationPolicy: WebNavigationPolicy = .unrestricted) {
         self._initialURL = initialURL
         self.userAgent = userAgent
+        self.navigationPolicy = navigationPolicy
     }
 
-    func makeView() -> WKWebView {
+    public func makeCoordinator() -> Coordinator {
+        Coordinator(navigationPolicy: navigationPolicy)
+    }
+
+    func makeView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
 
@@ -41,10 +50,13 @@ public struct WebView: ViewRepresentable {
             webView.customUserAgent = userAgent
         }
 
+        webView.navigationDelegate = context.coordinator
+
         return webView
     }
 
     func updateView(_ webView: WKWebView, context: Context) {
+        context.coordinator.navigationPolicy = navigationPolicy
 
         guard let initialURL = initialURL else {
             return
@@ -59,7 +71,7 @@ public struct WebView: ViewRepresentable {
     #if os(macOS)
 
     public func makeNSView(context: Context) -> WKWebView {
-        makeView()
+        makeView(context: context)
     }
 
     public func updateNSView(_ webView: WKWebView, context: Context) {
@@ -71,7 +83,7 @@ public struct WebView: ViewRepresentable {
     #else
 
     public func makeUIView(context: Context) -> WKWebView {
-        makeView()
+        makeView(context: context)
     }
 
     public func updateUIView(_ webView: WKWebView, context: Context) {
@@ -79,6 +91,53 @@ public struct WebView: ViewRepresentable {
     }
 
     #endif
+
+    // MARK: - Navigation policy
+
+    ///
+    /// Enforces the ``WebNavigationPolicy`` of the web view.
+    ///
+    @MainActor
+    public final class Coordinator: NSObject, WKNavigationDelegate {
+        var navigationPolicy: WebNavigationPolicy
+
+        init(navigationPolicy: WebNavigationPolicy) {
+            self.navigationPolicy = navigationPolicy
+        }
+
+        ///
+        /// The decision without WebKit types, so it can be tested.
+        ///
+        /// - Parameters:
+        ///     - url: The navigation target.
+        ///     - isMainFrame: `true` for the main frame, `false` for a subframe, `nil` when the target is a new window.
+        ///
+        func shouldAllow(_ url: URL?, isMainFrame: Bool?) -> Bool {
+            guard navigationPolicy.isRestricted else {
+                return true
+            }
+
+            switch isMainFrame {
+            case .none:
+                // New windows (target="_blank", window.open) would leave the policy behind.
+                return false
+            case .some(false):
+                return true
+            case .some(true):
+                guard let url else {
+                    return false
+                }
+
+                return navigationPolicy.allows(url)
+            }
+        }
+
+        @objc(webView:decidePolicyForNavigationAction:decisionHandler:)
+        public func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
+            let allowed = shouldAllow(navigationAction.request.url, isMainFrame: navigationAction.targetFrame?.isMainFrame)
+            decisionHandler(allowed ? .allow : .cancel)
+        }
+    }
 }
 
 #Preview {

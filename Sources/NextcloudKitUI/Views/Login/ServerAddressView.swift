@@ -20,6 +20,7 @@ public struct ServerAddressView: View {
     var sharedAccounts: [SharedAccount]
     let userAgent: String?
     let lockServerAddress: Bool
+    let loginNavigationPolicy: WebNavigationPolicy
 
     ///
     /// Create a new server address view.
@@ -31,14 +32,16 @@ public struct ServerAddressView: View {
     ///     - userAgent: An optional user agent string to override the one used by ``WKWebView``.
     ///     - defaultServerAddress: An optional address to pre-fill the server address field with, for branded apps that lock their users to a single server. Left empty (`nil`) by default, matching prior behavior.
     ///     - lockServerAddress: When `true`, the server address field is pre-filled and non-editable — only meaningful together with `defaultServerAddress`. The submit button, QR code scan and shared-account selection remain available. Defaults to `false`, matching prior behavior.
+    ///     - loginNavigationPolicy: Restricts which pages the login web view may navigate to, for branded apps that must keep users on their sign-in pages. Defaults to ``WebNavigationPolicy/unrestricted``, matching prior behavior.
     ///     - addAccount: see ``AddAccountHandler``.
     ///
-    public init(backgroundColor: Binding<Color>, brandImage: Image, sharedAccounts: [SharedAccount], userAgent: String? = nil, defaultServerAddress: String? = nil, lockServerAddress: Bool = false, addAccount: @escaping AddAccountHandler) {
+    public init(backgroundColor: Binding<Color>, brandImage: Image, sharedAccounts: [SharedAccount], userAgent: String? = nil, defaultServerAddress: String? = nil, lockServerAddress: Bool = false, loginNavigationPolicy: WebNavigationPolicy = .unrestricted, addAccount: @escaping AddAccountHandler) {
         self._backgroundColor = backgroundColor
         self.brandImage = brandImage
         self.sharedAccounts = sharedAccounts
         self.userAgent = userAgent
         self.lockServerAddress = lockServerAddress
+        self.loginNavigationPolicy = loginNavigationPolicy
         self._model = State(initialValue: LoginFlowModel(userAgent: userAgent, defaultServerAddress: defaultServerAddress, addAccount: addAccount))
     }
 
@@ -166,7 +169,7 @@ public struct ServerAddressView: View {
             .safeAreaPadding(.all)
         }
         .ignoresSafeArea()
-        .webSheet(initialURL: $model.loginAddress, isPresented: $model.isPresentingWebView, userAgent: userAgent, onDismiss: { model.cancel() })
+        .webSheet(initialURL: $model.loginAddress, isPresented: $model.isPresentingWebView, userAgent: userAgent, navigationPolicy: loginNavigationPolicy, onDismiss: { model.cancel() })
         .alert(String(localized: "Login Failed", comment: "Alert title"), isPresented: $model.isPresentingAlert) {
             Button(role: .cancel) {
                 model.errorMessage = nil
